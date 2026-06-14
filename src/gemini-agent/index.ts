@@ -61,7 +61,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
 
       // 4. Run the query loop from google-genai module
       let finalText = "";
-
+      let totalTokenCount: number = 0;
       for await (const turn of query(messages, group)) {
         const role = turn.role;
         const parts = turn.turn.parts;
@@ -74,20 +74,19 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
         // Keep sending typing indicator if model is still thinking / calling tools
         await channel.setTyping(chatJid);
 
+        totalTokenCount = turn.turn.totalTokenCount;
         for (const part of parts) {
-          if (part.thought && part.text) {
+          if (part.thought && part.text && part.text.length > 0) {
             await channel.sendMessage(chatJid, `Gemini thought:\n\n${part.text}\n`);
+            continue;
           }
 
-          if (part.text) {
-            finalText += part.text;
-          }
+          if (part.text && part.text.length > 0) finalText += part.text;
         }
       }
 
-      if (finalText) {
-        await channel.sendMessage(chatJid, finalText);
-      }
+      if (finalText) await channel.sendMessage(chatJid, finalText);
+      if (totalTokenCount > 0) await channel.sendMessage(chatJid, `total-tokens-count: ${totalTokenCount}`);
     } catch (error: unknown) {
       const errMessage = error instanceof Error ? error.message : String(error);
       logger.error({ chatJid: chatJid, err: errMessage }, "Error during agent loop processing");
@@ -105,8 +104,9 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
       } catch (error: unknown) {
         const errMessage = error instanceof Error ? error.message : String(error);
         logger.error({ chatJid, err: errMessage }, "Error in preceding queue execution segment");
+      } finally {
+        await processAgentTurn(msg, group);
       }
-      await processAgentTurn(msg, group);
     })().finally(() => {
       if (groupChains.get(chatJid) === currentRun) {
         groupChains.delete(chatJid);
