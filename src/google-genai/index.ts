@@ -37,7 +37,7 @@ const MAX_TOOL_DEPTH = 30;
 
 async function generateContent(contents: Content[], group: Pick<RegisteredGroup, "jid" | "folder">): Promise<GenerateContentResponse> {
   const activeTools = (() => {
-    let activeDeclarations = [...functionDeclarations];
+    const activeDeclarations = [...functionDeclarations];
     return [{ functionDeclarations: activeDeclarations }, { googleSearch: {} }];
   })();
 
@@ -68,7 +68,7 @@ async function generateContent(contents: Content[], group: Pick<RegisteredGroup,
 }
 
 function mapGeminiToModelTurn(response: GenerateContentResponse): QueryTurn {
-  const candidate = response.candidates!![0];
+  const candidate = response.candidates![0];
 
   // Intercept refusals natively before doing any mapping
   const finishReason = candidate.finishReason || FinishReason.OTHER;
