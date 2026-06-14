@@ -61,6 +61,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
 
       // 4. Run the query loop from google-genai module
       let finalText = "";
+
       for await (const turn of query(messages, group)) {
         const role = turn.role;
         const parts = turn.turn.parts;
@@ -74,7 +75,11 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
         await channel.setTyping(chatJid);
 
         for (const part of parts) {
-          if ("text" in part && part.text) {
+          if (part.thought && part.text) {
+            await channel.sendMessage(chatJid, `Gemini thought:\n\n${part.text}\n`);
+          }
+
+          if (part.text) {
             finalText += part.text;
           }
         }
@@ -102,14 +107,13 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
         logger.error({ chatJid, err: errMessage }, "Error in preceding queue execution segment");
       }
       await processAgentTurn(msg, group);
-    })();
-
-    groupChains.set(chatJid, currentRun);
-    currentRun.finally(() => {
+    })().finally(() => {
       if (groupChains.get(chatJid) === currentRun) {
         groupChains.delete(chatJid);
       }
     });
+
+    groupChains.set(chatJid, currentRun);
   };
 
   return {

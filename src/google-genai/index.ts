@@ -50,7 +50,7 @@ async function generateContent(contents: Content[], group: Pick<RegisteredGroup,
         - Your dedicated long-term memory namespace directory is located at '${path.resolve(GROUPS_DIR, group.folder, "memories")}'. You are authorized to use your file-writing tools to create, read, and organize markdown memory files in this directory to persist critical specifications, architectural designs, and user preferences across sessions.
         - CRITICAL RULE: Whenever you create, modify, or delete a memory file in this directory, you MUST immediately update the index registry at '${path.resolve(GROUPS_DIR, group.folder, "memories", "index.md")}'. Ensure the index table is kept perfectly up-to-date with the file's name, a concise description of its contents, relevant search tags, and the current update date.`,
       thinkingConfig: {
-        includeThoughts: false,
+        includeThoughts: true,
         thinkingLevel: ThinkingLevel.HIGH,
       },
       safetySettings: [
