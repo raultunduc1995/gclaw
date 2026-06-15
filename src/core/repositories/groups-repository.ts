@@ -38,19 +38,16 @@ export const createGroupsRepository = (deps: GroupsRepositoryDeps): GroupsReposi
         "",
         "| File Name | Description | Tags | Last Updated |",
         "| :--- | :--- | :--- | :--- |",
+        `| context.md | Relational/conversational preferences (directives like directive, factory style, don't over-analyze) and references to core projects. | "relationship", "conversational-style", "preferences", "collaborative-pace", "human-in-the-loop", "factory-patterns", "projects" | ${new Date().toISOString()} |`,
         "",
       ].join("\n");
       fs.writeFileSync(indexPath, defaultIndexContent, "utf8");
     }
 
     // 5. Provision default context.md under the group folder root (excluded from memories) if it doesn't exist
-    const contextPath = path.resolve(groupPath, "context.md");
+    const contextPath = path.resolve(memoriesPath, "context.md");
     if (!fs.existsSync(contextPath)) {
-      const defaultContextContent = [
-        "# Relational Context",
-        "*Local preferences and specifications for this chat group.*",
-        "",
-      ].join("\n");
+      const defaultContextContent = ["# Relational Context", "*Local preferences and specifications for this chat group.*", ""].join("\n");
       fs.writeFileSync(contextPath, defaultContextContent, "utf8");
     }
 

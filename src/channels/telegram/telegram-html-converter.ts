@@ -5,7 +5,28 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-export function markdownToTelegramHTML(input: string): string {
+function translateLatexToUnicode(latex: string): string {
+  return latex
+    .replace(/\\text\{([\s\S]*?)\}/g, "$1") // strip \text{...}
+    .replace(/\\mathcal\{([\s\S]*?)\}/g, "$1") // strip \mathcal{...}
+    .replace(/\\mathbb\{([\s\S]*?)\}/g, "$1") // strip \mathbb{...}
+    .replace(/\\langle/g, "⟨") // math brackets
+    .replace(/\\rangle/g, "⟩")
+    .replace(/\\concat/g, " + ") // concat operator
+    .replace(/\^\{\\circ\}/g, "°") // degrees ^{\circ}
+    .replace(/\\circ/g, "°")
+    .replace(/\\approx/g, "≈") // approximation
+    .replace(/\\alpha/g, "α")
+    .replace(/\\theta/g, "θ")
+    .replace(/\\dots/g, "...")
+    .replace(/\\cdot/g, "·")
+    .replace(/\\in/g, "∈")
+    .replace(/\\sum/g, "∑")
+    .replace(/_\{?([a-zA-Z0-9\-_]+)\}?/g, "_$1") // simplify subscripts (e.g. h_t)
+    .replace(/\^\{?([a-zA-Z0-9\-_]+)\}?/g, "^$1"); // simplify superscripts (e.g. R^V)
+}
+
+export function toTelegramHTML(input: string): string {
   if (!input) return input;
 
   const placeholders: string[] = [];
@@ -26,6 +47,16 @@ export function markdownToTelegramHTML(input: string): string {
 
   text = text.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_, label, url) => {
     return stash(`<a href="${escapeHtml(url)}">${escapeHtml(label)}</a>`);
+  });
+
+  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
+    const cleanMath = translateLatexToUnicode(math);
+    return stash(`<pre>${escapeHtml(cleanMath.trim())}</pre>`);
+  });
+
+  text = text.replace(/(?<!\$)\$(?!\s)([^\$\n]+?)(?<!\s)\$(?!\$)/g, (_, math) => {
+    const cleanMath = translateLatexToUnicode(math);
+    return stash(`<code>${escapeHtml(cleanMath.trim())}</code>`);
   });
 
   text = escapeHtml(text);

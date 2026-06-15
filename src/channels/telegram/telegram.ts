@@ -3,7 +3,7 @@ import { autoRetry } from "@grammyjs/auto-retry";
 import { Api, Bot, BotError } from "grammy";
 import { TELEGRAM_BOT_TOKEN, logger } from "../../core/utils/index.js";
 import type { Channel, InboundMessage } from "../types.js";
-import { markdownToTelegramHTML } from "./telegram-html-converter.js";
+import { toTelegramHTML } from "./telegram-html-converter.js";
 import type { SqliteRepository, RegisteredGroup } from "../../core/repositories/index.js";
 
 export interface TelegramChannelDeps {
@@ -168,7 +168,7 @@ const downloadTelegramFileAsBase64 = async (api: Api, fileId: string): Promise<s
 };
 
 const sendTelegramMessage = async (api: { sendMessage: Api["sendMessage"] }, chatId: string | number, text: string, options: { message_thread_id?: number } = {}): Promise<void> => {
-  const formatted = markdownToTelegramHTML(text);
+  const formatted = toTelegramHTML(text);
   try {
     await api.sendMessage(chatId, formatted, {
       ...options,
