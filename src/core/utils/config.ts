@@ -10,7 +10,7 @@ export const GROUPS_DIR = path.resolve(PROJECT_ROOT, "groups");
 export const MCP_AUTH_SECRET = process.env.MCP_AUTH_SECRET || "";
 
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
 
 export const TIMEZONE = ((): string => {
   const tz = process.env.TZ;
