@@ -39,6 +39,14 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
         },
       });
     }
+    if (msg.kind === "video") {
+      parts.push({
+        inlineData: {
+          mimeType: msg.videoMimeType,
+          data: msg.videoBase64,
+        },
+      });
+    }
     if (msg.prompt) {
       parts.push({ text: wrapMessage(msg.userName, msg.prompt) });
     }

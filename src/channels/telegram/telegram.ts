@@ -83,6 +83,54 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
       );
     });
 
+    bot.on("message:video", async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = opts.repository.groups.getGroups()[chatJid];
+      if (!group) {
+        logger.warn({ chatJid }, "Message from unregistered Telegram chat");
+        return;
+      }
+
+      const userName = ctx.from?.first_name || ctx.from?.username || ctx.from?.id.toString() || "Unknown";
+      const msgId = ctx.message.message_id.toString();
+      const content = ctx.message.caption || "";
+      const video = ctx.message.video;
+      
+      const fileSize = video.file_size || 0;
+      if (fileSize > 15 * 1024 * 1024) {
+        logger.warn({ chatJid, fileSize }, "Video exceeds 15MB limit");
+        await ctx.reply("The video is too large. Please send a video under 15MB.");
+        return;
+      }
+
+      const mimeType = video.mime_type || "video/mp4"; // Default to video/mp4 if missing
+      const validVideoMimeTypes = ["video/mp4", "video/mpeg", "video/quicktime", "video/webm"];
+      if (!validVideoMimeTypes.includes(mimeType)) {
+         logger.warn({ chatJid, mimeType }, "Unsupported video mime type received from Telegram");
+         return;
+      }
+
+      const fileId = video.file_id;
+      const videoBase64 = await downloadTelegramFileAsBase64(ctx.api, fileId);
+      if (!videoBase64) {
+        logger.error({ chatJid, fileId }, "Failed to download Telegram video");
+        return;
+      }
+
+      opts.agent.handleInboundMessage(
+        {
+          kind: "video",
+          id: msgId,
+          chatJid,
+          userName,
+          prompt: content,
+          videoMimeType: mimeType as any,
+          videoBase64,
+        },
+        group,
+      );
+    });
+
     bot.catch((err: BotError) => {
       logger.error({ err: err.message }, "Telegram bot error");
     });
