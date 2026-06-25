@@ -137,7 +137,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
     try {
       const result = await runInternal(msg, group, channel);
       if (!result) return;
-      if (result.totalTokenCount > 150_000) await runCompaction(group, channel);
+      if (result.totalTokenCount > 180_000) await runCompaction(group, channel);
     } catch (error: unknown) {
       const errMessage = error instanceof Error ? error.message : String(error);
       logger.error({ chatJid: chatJid, err: errMessage }, "Error during agent loop processing");

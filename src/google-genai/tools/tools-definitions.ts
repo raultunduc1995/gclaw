@@ -22,14 +22,14 @@ const allDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "text_editor",
-    description: "Executes a text editor command such as view, str_replace, create, or insert on a specified file path.",
+    description: "Executes a text editor command such as view, replace_lines, create, or insert on a specified file path.",
     parameters: {
       type: Type.OBJECT,
       properties: {
         command: {
           type: Type.STRING,
           description: "The type of editor command to execute.",
-          enum: ["view", "str_replace", "create", "insert"],
+          enum: ["view", "replace_lines", "create", "insert"],
         },
         path: {
           type: Type.STRING,
@@ -44,13 +44,18 @@ const allDeclarations: FunctionDeclaration[] = [
           minItems: "2",
           maxItems: "2",
         },
-        old_str: {
-          type: Type.STRING,
-          description: "The string to be replaced. Required only for 'str_replace' command.",
-        },
         new_str: {
           type: Type.STRING,
-          description: "The new string to replace the old string with. Required only for 'str_replace' command.",
+          description: "The text content to replace the specified lines with. Required only for 'replace_lines' command.",
+        },
+        replace_range: {
+          type: Type.ARRAY,
+          description: "A tuple containing the starting and ending line numbers to replace [start, end]. Required only for 'replace_lines' command.",
+          items: {
+            type: Type.INTEGER,
+          },
+          minItems: "2",
+          maxItems: "2",
         },
         file_text: {
           type: Type.STRING,
@@ -99,7 +104,7 @@ const allDeclarations: FunctionDeclaration[] = [
         command: {
           type: Type.STRING,
           description: "The type of editor command to execute on the remote server.",
-          enum: ["view", "str_replace", "create", "insert"],
+          enum: ["view", "replace_lines", "create", "insert"],
         },
         path: {
           type: Type.STRING,
@@ -114,13 +119,18 @@ const allDeclarations: FunctionDeclaration[] = [
           minItems: "2",
           maxItems: "2",
         },
-        old_str: {
-          type: Type.STRING,
-          description: "The string to be replaced. Required only for 'str_replace' command on the remote server.",
-        },
         new_str: {
           type: Type.STRING,
-          description: "The new string to replace the old string with. Required only for 'str_replace' command on the remote server.",
+          description: "The text content to replace the specified lines with. Required only for 'replace_lines' command on the remote server.",
+        },
+        replace_range: {
+          type: Type.ARRAY,
+          description: "A tuple containing the starting and ending line numbers to replace [start, end]. Required only for 'replace_lines' command on the remote server.",
+          items: {
+            type: Type.INTEGER,
+          },
+          minItems: "2",
+          maxItems: "2",
         },
         file_text: {
           type: Type.STRING,

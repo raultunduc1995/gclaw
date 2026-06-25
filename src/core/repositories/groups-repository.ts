@@ -38,7 +38,6 @@ export const createGroupsRepository = (deps: GroupsRepositoryDeps): GroupsReposi
         "",
         "| File Name | Description | Tags | Last Updated |",
         "| :--- | :--- | :--- | :--- |",
-        `| context.md | Relational/conversational preferences (directives like directive, factory style, don't over-analyze) and references to core projects. | "relationship", "conversational-style", "preferences", "collaborative-pace", "human-in-the-loop", "factory-patterns", "projects" | ${new Date().toISOString()} |`,
         "",
       ].join("\n");
       fs.writeFileSync(indexPath, defaultIndexContent, "utf8");
