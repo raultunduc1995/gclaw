@@ -4,21 +4,31 @@ import fs from "fs";
 import { STORE_DIR } from "../utils/index.js";
 import { createGroupResource } from "./resources/group.js";
 import { createHistoryResource } from "./resources/history.js";
+import { createRemindersResource } from "./resources/reminders.js";
 import { createGroupsRepository, type GroupsRepository } from "./groups-repository.js";
 import { createHistoryRepository, type HistoryRepository } from "./history-repository.js";
+import { createRemindersRepository, type RemindersRepository } from "./reminders-repository.js";
+import { type ReminderRow } from "./resources/reminders.js";
 
 export { type GroupsRepository } from "./groups-repository.js";
 export { type HistoryRepository } from "./history-repository.js";
+export { type RemindersRepository } from "./reminders-repository.js";
 export { type RegisteredGroup } from "./resources/group.js";
 export { type HistoryEntry } from "./resources/history.js";
+export { type ReminderRow } from "./resources/reminders.js";
 
 export interface SqliteRepository {
   groups: GroupsRepository;
   history: HistoryRepository;
+  reminders: RemindersRepository;
   close(): void;
 }
 
-export const createSqliteRepository = (): SqliteRepository => {
+export interface SqliteRepositoryDeps {
+  onReminderTrigger: (row: ReminderRow) => void;
+}
+
+export const createSqliteRepository = (deps: SqliteRepositoryDeps): SqliteRepository => {
   if (!fs.existsSync(STORE_DIR)) {
     fs.mkdirSync(STORE_DIR, { recursive: true });
   }
@@ -47,13 +57,23 @@ export const createSqliteRepository = (): SqliteRepository => {
     );
 
     CREATE INDEX IF NOT EXISTS idx_chat_history_jid ON chat_history(chat_jid);
+
+    CREATE TABLE IF NOT EXISTS reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_jid TEXT NOT NULL,
+      trigger_at TEXT NOT NULL,
+      description TEXT NOT NULL,
+      FOREIGN KEY(chat_jid) REFERENCES groups(jid) ON DELETE CASCADE
+    );
   `);
 
   const groupsResource = createGroupResource(db);
   const historyResource = createHistoryResource(db);
+  const remindersResource = createRemindersResource(db);
 
   const groups = createGroupsRepository({ groupsResource });
   const history = createHistoryRepository({ historyResource });
+  const reminders = createRemindersRepository({ remindersResource, onReminderTrigger: deps.onReminderTrigger });
 
   const close = (): void => {
     db.close();
@@ -62,6 +82,7 @@ export const createSqliteRepository = (): SqliteRepository => {
   return {
     groups,
     history,
+    reminders,
     close,
   };
 };

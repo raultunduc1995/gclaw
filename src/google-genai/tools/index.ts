@@ -5,6 +5,7 @@ import { BashTool } from "./bash-tool.js";
 import { McpClientManager } from "./mcp-client.js";
 import { TextEditorTool } from "./text-editor-tool.js";
 import { functionDeclarations } from "./tools-definitions.js";
+import type { SqliteRepository } from "../../core/repositories/index.js";
 import { createUrlContextTool, type UrlContextTool } from "./url-context-tool.js";
 
 export { BashTool, McpClientManager, TextEditorTool, type UrlContextTool, createUrlContextTool, functionDeclarations };
@@ -18,7 +19,7 @@ const isEnabled = (name: string): boolean => {
   return functionDeclarations.some((decl) => decl.name === name);
 };
 
-export const createAgentTools = async (groupFolder: string): Promise<AgentTools> => {
+export const createAgentTools = async (groupFolder: string, chatJid: string, repository: SqliteRepository): Promise<AgentTools> => {
   const groupPath = path.resolve(GROUPS_DIR, groupFolder);
 
   let bash: BashTool | null = null;
@@ -73,6 +74,13 @@ export const createAgentTools = async (groupFolder: string): Promise<AgentTools>
         const query = args.query as string;
         const result = await urlContext!.execute({ url, query });
         return { result };
+      }
+      if (name === "schedule_reminder") {
+        const description = args.description as string;
+        const triggerAt = args.trigger_at as string;
+        
+        repository.reminders.create(chatJid, triggerAt, description);
+        return { result: `Reminder successfully scheduled for ${triggerAt}` };
       }
 
       if (name === "mcp_bash" || name === "mcp_text_editor") {

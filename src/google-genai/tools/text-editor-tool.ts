@@ -1,4 +1,3 @@
-/* eslint-disable preserve-caught-error */
 import { open, readFile, readdir, rename, stat, mkdir } from "fs/promises";
 import { unlink } from "fs/promises";
 import path from "path";

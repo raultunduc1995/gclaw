@@ -1,7 +1,3 @@
-/* eslint-disable no-catch-all/no-catch-all */
-
-// google-genai/index.ts
-
 import path from "path";
 
 import { FinishReason, HarmBlockThreshold, HarmCategory, GenerateContentResponse, ThinkingLevel } from "@google/genai";
@@ -10,11 +6,10 @@ import type { Content, FunctionCall, Part } from "@google/genai";
 import { GEMINI_MODEL, GROUPS_DIR, logger } from "../core/utils/index.js";
 import type { MessageParam, QueryTurn, Message } from "./types.js";
 import { RefusalError } from "./types.js";
-import type { RegisteredGroup } from "../core/repositories/index.js";
+import type { RegisteredGroup, SqliteRepository } from "../core/repositories/index.js";
 import ai from "./genai.js";
 import { functionDeclarations, createAgentTools } from "./tools/index.js";
 import type { AgentTools } from "./tools/index.js";
-
 export type { ContentPart as ContentBlockParam, MessageParam, Message, QueryTurn } from "./types.js";
 export { RefusalError } from "./types.js";
 
@@ -45,7 +40,9 @@ async function generateContent(contents: Content[], group: Pick<RegisteredGroup,
       systemInstruction: `
         ${GEMINI_PROMPT}
         - Your dedicated long-term memory namespace directory is located at '${path.resolve(GROUPS_DIR, group.folder, "memories")}'. You are authorized to use your file-writing tools to create, read, and organize markdown memory files in this directory to persist critical specifications, architectural designs, and user preferences across sessions.
-        - CRITICAL RULE: Whenever you create, modify, or delete a memory file in this directory, you MUST immediately update the index registry at '${path.resolve(GROUPS_DIR, group.folder, "memories", "index.md")}'. Ensure the index table is kept perfectly up-to-date with the file's name, a concise description of its contents, relevant search tags, and the current update date.`,
+        - CRITICAL RULE: Whenever you create, modify, or delete a memory file in this directory, you MUST immediately update the index registry at '${path.resolve(GROUPS_DIR, group.folder, "memories", "index.md")}'. Ensure the index table is kept perfectly up-to-date with the file's name, a concise description of its contents, relevant search tags, and the current update date.
+        - USE THE TEXT EDITOR TOOL. Do not write ad-hoc bash scripts (e.g., node script wrappers) to modify files. It burns tokens. Use the built-in \`text_editor\` tools exclusively for file updates.\`;
+        - Proactively monitor the conversation for new personal facts, health updates, routines, or preferences. Whenever the user states something important, you MUST autonomously use the text_editor tool to update or create the relevant memory file in the background, without waiting for the user to explicitly ask you to save it.`,
       thinkingConfig: {
         includeThoughts: false,
         thinkingLevel: ThinkingLevel.HIGH,
@@ -162,8 +159,8 @@ async function* runQueryLoop(inputMessages: Array<Content>, group: Pick<Register
   }
 }
 
-export async function* query(messages: Array<MessageParam>, group: Pick<RegisteredGroup, "jid" | "folder">): AsyncGenerator<QueryTurn, void> {
-  const agentTools = await createAgentTools(group.folder);
+export async function* query(messages: Array<MessageParam>, group: Pick<RegisteredGroup, "jid" | "folder">, repository: SqliteRepository): AsyncGenerator<QueryTurn, void> {
+  const agentTools = await createAgentTools(group.folder, group.jid, repository);
   const inputMessages: Array<Content> = messages.map((m): Content => ({ role: m.role, parts: m.parts }));
 
   try {

@@ -25,4 +25,4 @@ export const TIMEZONE = ((): string => {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 })();
 
-export const ENABLED_TOOLS = ["bash", "text_editor", "fetch_url_context"];
+export const ENABLED_TOOLS = ["bash", "text_editor", "fetch_url_context", "schedule_reminder"];

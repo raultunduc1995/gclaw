@@ -166,6 +166,24 @@ const allDeclarations: FunctionDeclaration[] = [
       required: ["url", "query"],
     },
   },
+  {
+    name: "schedule_reminder",
+    description: "Schedule a future reminder for the user. Gemini will send the description back into the chat at the exact specified time.",
+    parameters: {
+      type: Type.OBJECT,
+      properties: {
+        description: {
+          type: Type.STRING,
+          description: "The instruction or message content for the reminder.",
+        },
+        trigger_at: {
+          type: Type.STRING,
+          description: "The exact ISO 8601 timestamp when the reminder should fire (e.g. '2026-06-26T09:00:00.000Z').",
+        },
+      },
+      required: ["description", "trigger_at"],
+    },
+  },
 ];
 
 export const functionDeclarations: FunctionDeclaration[] = allDeclarations.filter((decl) => {

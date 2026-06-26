@@ -1,32 +1,26 @@
-/* eslint-disable no-catch-all/no-catch-all */
 import { Temporal } from "@js-temporal/polyfill";
 
 import { query } from "../google-genai/index.js";
 import type { MessageParam, ContentBlockParam } from "../google-genai/index.js";
 import { logger, TIMEZONE } from "../core/utils/index.js";
-import type { RegisteredGroup, HistoryEntry } from "../core/repositories/index.js";
+import type { RegisteredGroup, SqliteRepository } from "../core/repositories/index.js";
 import { type InboundMessage, Channel } from "../channels/index.js";
 
 export interface GeminiAgentDeps {
-  repository: {
-    history: {
-      getHistory(chatJid: string, limit?: number): HistoryEntry[];
-      addMessage(chatJid: string, role: string, parts: Array<ContentBlockParam>): void;
-      clearHistory(chatJid: string): void;
-    };
-    groups: {
-      registerGroup(jid: string, name: string, folder: string): RegisteredGroup;
-    };
-  };
+  repository: SqliteRepository;
   channelsRegistry: {
     findChannel(chatJid: string): Channel | undefined;
   };
 }
 
+export interface GeminiAgent {
+  handleInboundMessage: (msg: InboundMessage, group: RegisteredGroup) => void;
+}
+
 const formatDateTime = (): string => Temporal.Now.zonedDateTimeISO(TIMEZONE).toPlainDateTime().toString({ fractionalSecondDigits: 0 });
 const wrapMessage = (senderName: string, content: string): string => `[${formatDateTime()}] ${senderName}:\n${content}`;
 
-export const createGeminiAgent = (deps: GeminiAgentDeps) => {
+export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
   const groupChains = new Map<string, Promise<void>>();
 
   const buildUserParts = (msg: InboundMessage): Array<ContentBlockParam> => {
@@ -68,7 +62,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
     // 4. Run the query loop from google-genai module
     let finalText = "";
     let totalTokenCount: number = 0;
-    for await (const turn of query(messages, group)) {
+    for await (const turn of query(messages, group, deps.repository)) {
       const role = turn.role;
       const parts = turn.turn.parts;
 
@@ -96,7 +90,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps) => {
     }
 
     if (finalText) await channel.sendMessage(chatJid, finalText);
-    if (totalTokenCount > 0) await channel.sendMessage(chatJid, `total-tokens-count: ${totalTokenCount}`);
+    // if (totalTokenCount > 0) await channel.sendMessage(chatJid, `total-tokens-count: ${totalTokenCount}`);
 
     return { finalText, totalTokenCount };
   };
