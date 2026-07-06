@@ -151,20 +151,17 @@ export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
     const chatJid = msg.chatJid;
     const previousRun = groupChains.get(chatJid) || Promise.resolve();
 
-    const currentRun = (async () => {
-      try {
-        await previousRun;
-      } catch (error: unknown) {
+    const currentRun = previousRun
+      .then(async () => {
+        await processAgentTurn(msg, group);
+      })
+      .catch((error: unknown) => {
         const errMessage = error instanceof Error ? error.message : String(error);
         logger.error({ chatJid, err: errMessage }, "Error in preceding queue execution segment");
-      } finally {
-        await processAgentTurn(msg, group);
-      }
-    })().finally(() => {
-      if (groupChains.get(chatJid) === currentRun) {
-        groupChains.delete(chatJid);
-      }
-    });
+      })
+      .finally(() => {
+        if (groupChains.get(chatJid) === currentRun) groupChains.delete(chatJid);
+      });
 
     groupChains.set(chatJid, currentRun);
   };
