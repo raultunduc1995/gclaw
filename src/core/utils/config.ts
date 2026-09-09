@@ -10,7 +10,7 @@ export const GROUPS_DIR = path.resolve(PROJECT_ROOT, "groups");
 export const MCP_AUTH_SECRET = process.env.MCP_AUTH_SECRET || "";
 
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-export const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+export const GEMINI_MODEL = "gemini-3.8-flash";
 
 export const TIMEZONE = ((): string => {
   const tz = process.env.TZ;
@@ -24,5 +24,3 @@ export const TIMEZONE = ((): string => {
   }
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 })();
-
-export const ENABLED_TOOLS = ["bash", "text_editor", "fetch_url_context", "schedule_reminder"];

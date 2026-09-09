@@ -1,59 +1,27 @@
 import path from "path";
-import { GROUPS_DIR, logger, MCP_AUTH_SECRET } from "../../core/utils/index.js";
+import { GROUPS_DIR, logger } from "../../core/utils/index.js";
 import {} from "../../core/utils/config.js";
 import { BashTool } from "./bash-tool.js";
-import { McpClientManager } from "./mcp-client.js";
 import { TextEditorTool } from "./text-editor-tool.js";
-import { functionDeclarations } from "./tools-definitions.js";
 import type { SqliteRepository } from "../../core/repositories/index.js";
 import { createUrlContextTool, type UrlContextTool } from "./url-context-tool.js";
+import { allDeclarations } from "./tools-definitions.js";
 
-export { BashTool, McpClientManager, TextEditorTool, type UrlContextTool, createUrlContextTool, functionDeclarations };
+export { BashTool, TextEditorTool, type UrlContextTool, createUrlContextTool, allDeclarations };
 
 export interface AgentTools {
   execute(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
-const isEnabled = (name: string): boolean => {
-  return functionDeclarations.some((decl) => decl.name === name);
-};
-
 export const createAgentTools = async (groupFolder: string, chatJid: string, repository: SqliteRepository): Promise<AgentTools> => {
   const groupPath = path.resolve(GROUPS_DIR, groupFolder);
 
-  let bash: BashTool | null = null;
-  let textEditor: TextEditorTool | null = null;
-  let urlContext: UrlContextTool | null = null;
-  let mcpManager: McpClientManager | null = null;
-
-  if (isEnabled("bash")) {
-    bash = BashTool.init(groupPath);
-  }
-
-  if (isEnabled("text_editor")) {
-    textEditor = TextEditorTool.init(groupPath);
-  }
-
-  if (isEnabled("fetch_url_context")) {
-    urlContext = createUrlContextTool();
-  }
-
-  if (isEnabled("mcp_bash") || isEnabled("mcp_text_editor")) {
-    mcpManager = new McpClientManager();
-    await mcpManager.connect({
-      "work-mac": {
-        url: "http://192.168.1.176:3737/sse",
-        headers: { "X-Auth": MCP_AUTH_SECRET },
-      },
-    });
-  }
+  let bash: BashTool | null = BashTool.init(groupPath);
+  const textEditor: TextEditorTool = TextEditorTool.init(groupPath);
+  const urlContext: UrlContextTool = createUrlContextTool();
 
   const execute = async (name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
-    if (!isEnabled(name)) {
-      return { error: `Tool '${name}' is disabled by configuration.` };
-    }
-
     logger.info({ name, args, groupFolder }, "Executing agent tool");
 
     try {
@@ -78,14 +46,9 @@ export const createAgentTools = async (groupFolder: string, chatJid: string, rep
       if (name === "schedule_reminder") {
         const description = args.description as string;
         const triggerAt = args.trigger_at as string;
-        
+
         repository.reminders.create(chatJid, triggerAt, description);
         return { result: `Reminder successfully scheduled for ${triggerAt}` };
-      }
-
-      if (name === "mcp_bash" || name === "mcp_text_editor") {
-        const result = await mcpManager!.callTool(name, args);
-        return { result };
       }
 
       return { error: `Tool ${name} is not implemented.` };
@@ -101,10 +64,6 @@ export const createAgentTools = async (groupFolder: string, chatJid: string, rep
     if (bash) {
       bash.close();
       bash = null;
-    }
-    if (mcpManager) {
-      await mcpManager.close();
-      mcpManager = null;
     }
   };
 

@@ -1,6 +1,6 @@
 import path from "path";
 
-import { FinishReason, HarmBlockThreshold, HarmCategory, GenerateContentResponse, ThinkingLevel } from "@google/genai";
+import { FinishReason, HarmBlockThreshold, HarmCategory, GenerateContentResponse } from "@google/genai";
 import type { Content, FunctionCall, Part } from "@google/genai";
 
 import { GEMINI_MODEL, GROUPS_DIR, logger } from "../core/utils/index.js";
@@ -8,7 +8,7 @@ import type { MessageParam, QueryTurn, Message } from "./types.js";
 import { RefusalError } from "./types.js";
 import type { RegisteredGroup, SqliteRepository } from "../core/repositories/index.js";
 import ai from "./genai.js";
-import { functionDeclarations, createAgentTools } from "./tools/index.js";
+import { allDeclarations, createAgentTools } from "./tools/index.js";
 import type { AgentTools } from "./tools/index.js";
 export type { ContentPart as ContentBlockParam, MessageParam, Message, QueryTurn } from "./types.js";
 export { RefusalError } from "./types.js";
@@ -29,8 +29,7 @@ const MAX_TOOL_DEPTH = 30;
 
 async function generateContent(contents: Content[], group: Pick<RegisteredGroup, "jid" | "folder">): Promise<GenerateContentResponse> {
   const activeTools = (() => {
-    const activeDeclarations = [...functionDeclarations];
-    return [{ functionDeclarations: activeDeclarations }, { googleSearch: {} }];
+    return [{ functionDeclarations: allDeclarations }, { googleSearch: {} }];
   })();
 
   return ai.models.generateContent({
@@ -45,7 +44,6 @@ async function generateContent(contents: Content[], group: Pick<RegisteredGroup,
         - Proactively monitor the conversation for new personal facts, health updates, routines, or preferences. Whenever the user states something important, you MUST autonomously use the text_editor tool to update or create the relevant memory file in the background, without waiting for the user to explicitly ask you to save it.`,
       thinkingConfig: {
         includeThoughts: false,
-        thinkingLevel: ThinkingLevel.HIGH,
       },
       safetySettings: [
         { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.OFF },

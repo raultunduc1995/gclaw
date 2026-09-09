@@ -18,7 +18,7 @@ export const createUrlContextTool = (): UrlContextTool => {
 
       try {
         const response = await ai.models.generateContent({
-          model: "gemini-3.1-flash-lite",
+          model: "gemini-3.5-flash-lite",
           contents: `URL to browse: ${url}\nTargeted Query/Instructions: ${query}`,
           config: {
             systemInstruction,
