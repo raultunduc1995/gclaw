@@ -1,6 +1,5 @@
 import path from "path";
 import { GROUPS_DIR, logger } from "../../core/utils/index.js";
-import {} from "../../core/utils/config.js";
 import { BashTool } from "./bash-tool.js";
 import { TextEditorTool } from "./text-editor-tool.js";
 import type { SqliteRepository } from "../../core/repositories/index.js";
