@@ -1,4 +1,4 @@
-import { ImageMimeType, VideoMimeType } from "../core/common/index.js";
+import { ImageMimeType, VideoMimeType, AudioMimeType, PdfMimeType } from "../core/common/index.js";
 
 interface MessageBase {
   id: string;
@@ -23,7 +23,19 @@ interface VideoMessage extends MessageBase {
   videoMimeType: VideoMimeType;
 }
 
-export type InboundMessage = TextMessage | ImageMessage | VideoMessage;
+interface VoiceMessage extends MessageBase {
+  kind: "voice";
+  audioBase64: string;
+  audioMimeType: AudioMimeType;
+}
+
+interface PdfMessage extends MessageBase {
+  kind: "pdf";
+  pdfBase64: string;
+  pdfMimeType: PdfMimeType;
+}
+
+export type InboundMessage = TextMessage | ImageMessage | VideoMessage | VoiceMessage | PdfMessage;
 
 export interface Channel {
   name: string;

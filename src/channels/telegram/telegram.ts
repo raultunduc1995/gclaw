@@ -5,6 +5,7 @@ import { TELEGRAM_BOT_TOKEN, logger } from "../../core/utils/index.js";
 import type { Channel, InboundMessage } from "../types.js";
 import { toTelegramHTML } from "./telegram-html-converter.js";
 import type { SqliteRepository, RegisteredGroup } from "../../core/repositories/index.js";
+import type { AudioMimeType, VideoMimeType } from "../../core/common/index.js";
 
 export interface TelegramChannelDeps {
   type: "telegram";
@@ -83,7 +84,7 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
       );
     });
 
-    bot.on("message:video", async (ctx) => {
+    bot.on(["message:video", "message:animation"], async (ctx) => {
       const chatJid = `tg:${ctx.chat.id}`;
       const group = opts.repository.groups.getGroups()[chatJid];
       if (!group) {
@@ -91,11 +92,14 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
         return;
       }
 
+      const msg = ctx.message;
+      const video = "video" in msg && msg.video ? msg.video : "animation" in msg && msg.animation ? msg.animation : null;
+      if (!video) return;
+
       const userName = ctx.from?.first_name || ctx.from?.username || ctx.from?.id.toString() || "Unknown";
-      const msgId = ctx.message.message_id.toString();
-      const content = ctx.message.caption || "";
-      const video = ctx.message.video;
-      
+      const msgId = msg.message_id.toString();
+      const content = msg.caption || "";
+
       const fileSize = video.file_size || 0;
       if (fileSize > 15 * 1024 * 1024) {
         logger.warn({ chatJid, fileSize }, "Video exceeds 15MB limit");
@@ -103,11 +107,11 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
         return;
       }
 
-      const mimeType = video.mime_type || "video/mp4"; // Default to video/mp4 if missing
+      const mimeType = (video.mime_type || "video/mp4") as VideoMimeType;
       const validVideoMimeTypes = ["video/mp4", "video/mpeg", "video/quicktime", "video/webm"];
       if (!validVideoMimeTypes.includes(mimeType)) {
-         logger.warn({ chatJid, mimeType }, "Unsupported video mime type received from Telegram");
-         return;
+        logger.warn({ chatJid, mimeType }, "Unsupported video mime type received from Telegram");
+        return;
       }
 
       const fileId = video.file_id;
@@ -124,11 +128,105 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
           chatJid,
           userName,
           prompt: content,
-          videoMimeType: mimeType as any,
+          videoMimeType: mimeType,
           videoBase64,
         },
         group,
       );
+    });
+
+    bot.on("message:voice", async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = opts.repository.groups.getGroups()[chatJid];
+      if (!group) {
+        logger.warn({ chatJid }, "Message from unregistered Telegram chat");
+        return;
+      }
+
+      const userName = ctx.from?.first_name || ctx.from?.username || ctx.from?.id.toString() || "Unknown";
+      const msgId = ctx.message.message_id.toString();
+      const content = ctx.message.caption || "";
+      const voice = ctx.message.voice;
+
+      const mimeType = (voice.mime_type || "audio/ogg") as AudioMimeType;
+      const audioBase64 = await downloadTelegramFileAsBase64(ctx.api, voice.file_id);
+      if (!audioBase64) {
+        logger.error({ chatJid, fileId: voice.file_id }, "Failed to download Telegram voice note");
+        return;
+      }
+
+      opts.agent.handleInboundMessage(
+        {
+          kind: "voice",
+          id: msgId,
+          chatJid,
+          userName,
+          prompt: content,
+          audioMimeType: mimeType,
+          audioBase64,
+        },
+        group,
+      );
+    });
+
+    bot.on("message:document", async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = opts.repository.groups.getGroups()[chatJid];
+      if (!group) {
+        logger.warn({ chatJid }, "Message from unregistered Telegram chat");
+        return;
+      }
+
+      const doc = ctx.message.document;
+      const mimeType = doc.mime_type;
+      const userName = ctx.from?.first_name || ctx.from?.username || ctx.from?.id.toString() || "Unknown";
+      const msgId = ctx.message.message_id.toString();
+      const content = ctx.message.caption || "";
+      const fileId = doc.file_id;
+
+      if (mimeType && (mimeType.startsWith("video/") || mimeType === "image/gif")) {
+        const videoMime: VideoMimeType = "video/mp4";
+        const videoBase64 = await downloadTelegramFileAsBase64(ctx.api, fileId);
+        if (!videoBase64) {
+          logger.error({ chatJid, fileId }, "Failed to download Telegram video document");
+          return;
+        }
+        opts.agent.handleInboundMessage(
+          {
+            kind: "video",
+            id: msgId,
+            chatJid,
+            userName,
+            prompt: content,
+            videoMimeType: videoMime,
+            videoBase64,
+          },
+          group,
+        );
+        return;
+      }
+
+      if (mimeType === "application/pdf") {
+        const pdfBase64 = await downloadTelegramFileAsBase64(ctx.api, fileId);
+        if (!pdfBase64) {
+          logger.error({ chatJid, fileId }, "Failed to download Telegram PDF document");
+          return;
+        }
+
+        opts.agent.handleInboundMessage(
+          {
+            kind: "pdf",
+            id: msgId,
+            chatJid,
+            userName,
+            prompt: content,
+            pdfMimeType: "application/pdf",
+            pdfBase64,
+          },
+          group,
+        );
+        return;
+      }
     });
 
     bot.catch((err: BotError) => {

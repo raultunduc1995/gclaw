@@ -41,6 +41,22 @@ export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
         },
       });
     }
+    if (msg.kind === "voice") {
+      parts.push({
+        inlineData: {
+          mimeType: msg.audioMimeType,
+          data: msg.audioBase64,
+        },
+      });
+    }
+    if (msg.kind === "pdf") {
+      parts.push({
+        inlineData: {
+          mimeType: msg.pdfMimeType,
+          data: msg.pdfBase64,
+        },
+      });
+    }
     if (msg.prompt) {
       parts.push({ text: wrapMessage(msg.userName, msg.prompt) });
     }
