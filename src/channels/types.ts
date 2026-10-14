@@ -13,26 +13,26 @@ interface TextMessage extends MessageBase {
 
 interface ImageMessage extends MessageBase {
   kind: "image";
-  imageBase64: string;
-  imageMimeType: ImageMimeType;
+  blob: Blob;
+  mimeType: ImageMimeType;
 }
 
 interface VideoMessage extends MessageBase {
   kind: "video";
-  videoBase64: string;
-  videoMimeType: VideoMimeType;
+  blob: Blob;
+  mimeType: VideoMimeType;
 }
 
 interface VoiceMessage extends MessageBase {
   kind: "voice";
-  audioBase64: string;
-  audioMimeType: AudioMimeType;
+  blob: Blob;
+  mimeType: AudioMimeType;
 }
 
 interface PdfMessage extends MessageBase {
   kind: "pdf";
-  pdfBase64: string;
-  pdfMimeType: PdfMimeType;
+  blob: Blob;
+  mimeType: PdfMimeType;
 }
 
 export type InboundMessage = TextMessage | ImageMessage | VideoMessage | VoiceMessage | PdfMessage;

@@ -5,7 +5,9 @@ import { TELEGRAM_BOT_TOKEN, logger } from "../../core/utils/index.js";
 import type { Channel, InboundMessage } from "../types.js";
 import { toTelegramHTML } from "./telegram-html-converter.js";
 import type { SqliteRepository, RegisteredGroup } from "../../core/repositories/index.js";
-import type { AudioMimeType, VideoMimeType } from "../../core/common/index.js";
+import type { AudioMimeType, ImageMimeType, PdfMimeType, VideoMimeType } from "../../core/common/index.js";
+
+type MediaMimeType = ImageMimeType | VideoMimeType | AudioMimeType | PdfMimeType;
 
 export interface TelegramChannelDeps {
   type: "telegram";
@@ -64,8 +66,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
 
       const photos = ctx.message.photo;
       const largest = photos[photos.length - 1];
-      const imageBase64 = await downloadTelegramFileAsBase64(ctx.api, largest.file_id);
-      if (!imageBase64) {
+      const blob = await downloadTelegramFileAsBlob(ctx.api, largest.file_id, "image/jpeg");
+      if (!blob) {
         logger.error({ chatJid, fileId: largest.file_id }, "Failed to download Telegram photo");
         return;
       }
@@ -77,8 +79,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
           chatJid,
           userName,
           prompt: content,
-          imageMimeType: "image/jpeg",
-          imageBase64,
+          mimeType: "image/jpeg",
+          blob,
         },
         group,
       );
@@ -115,8 +117,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
       }
 
       const fileId = video.file_id;
-      const videoBase64 = await downloadTelegramFileAsBase64(ctx.api, fileId);
-      if (!videoBase64) {
+      const blob = await downloadTelegramFileAsBlob(ctx.api, fileId, mimeType);
+      if (!blob) {
         logger.error({ chatJid, fileId }, "Failed to download Telegram video");
         return;
       }
@@ -128,8 +130,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
           chatJid,
           userName,
           prompt: content,
-          videoMimeType: mimeType,
-          videoBase64,
+          mimeType,
+          blob,
         },
         group,
       );
@@ -149,8 +151,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
       const voice = ctx.message.voice;
 
       const mimeType = (voice.mime_type || "audio/ogg") as AudioMimeType;
-      const audioBase64 = await downloadTelegramFileAsBase64(ctx.api, voice.file_id);
-      if (!audioBase64) {
+      const blob = await downloadTelegramFileAsBlob(ctx.api, voice.file_id, mimeType);
+      if (!blob) {
         logger.error({ chatJid, fileId: voice.file_id }, "Failed to download Telegram voice note");
         return;
       }
@@ -162,8 +164,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
           chatJid,
           userName,
           prompt: content,
-          audioMimeType: mimeType,
-          audioBase64,
+          mimeType,
+          blob,
         },
         group,
       );
@@ -186,8 +188,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
 
       if (mimeType && (mimeType.startsWith("video/") || mimeType === "image/gif")) {
         const videoMime: VideoMimeType = "video/mp4";
-        const videoBase64 = await downloadTelegramFileAsBase64(ctx.api, fileId);
-        if (!videoBase64) {
+        const blob = await downloadTelegramFileAsBlob(ctx.api, fileId, videoMime);
+        if (!blob) {
           logger.error({ chatJid, fileId }, "Failed to download Telegram video document");
           return;
         }
@@ -198,8 +200,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
             chatJid,
             userName,
             prompt: content,
-            videoMimeType: videoMime,
-            videoBase64,
+            mimeType: videoMime,
+            blob,
           },
           group,
         );
@@ -207,8 +209,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
       }
 
       if (mimeType === "application/pdf") {
-        const pdfBase64 = await downloadTelegramFileAsBase64(ctx.api, fileId);
-        if (!pdfBase64) {
+        const blob = await downloadTelegramFileAsBlob(ctx.api, fileId, "application/pdf");
+        if (!blob) {
           logger.error({ chatJid, fileId }, "Failed to download Telegram PDF document");
           return;
         }
@@ -220,8 +222,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
             chatJid,
             userName,
             prompt: content,
-            pdfMimeType: "application/pdf",
-            pdfBase64,
+            mimeType: "application/pdf",
+            blob,
           },
           group,
         );
@@ -289,7 +291,7 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
   };
 };
 
-const downloadTelegramFileAsBase64 = async (api: Api, fileId: string): Promise<string | undefined> => {
+const downloadTelegramFileAsBlob = async (api: Api, fileId: string, mimeType: MediaMimeType): Promise<Blob | undefined> => {
   try {
     const file = await api.getFile(fileId);
     if (!file.file_path) return undefined;
@@ -306,7 +308,7 @@ const downloadTelegramFileAsBase64 = async (api: Api, fileId: string): Promise<s
         .on("error", reject);
     });
 
-    return (buffer as Buffer).toString("base64");
+    return new Blob([buffer], { type: mimeType });
   } catch (err) {
     logger.error({ fileId, err }, "Failed to download Telegram file");
     return undefined;

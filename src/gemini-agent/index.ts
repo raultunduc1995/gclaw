@@ -1,6 +1,6 @@
 import { Temporal } from "@js-temporal/polyfill";
 
-import { query } from "../google-genai/index.js";
+import { query, uploadMediaFile } from "../google-genai/index.js";
 import type { MessageParam, ContentBlockParam } from "../google-genai/index.js";
 import { logger, TIMEZONE } from "../core/utils/index.js";
 import type { RegisteredGroup, SqliteRepository } from "../core/repositories/index.js";
@@ -23,37 +23,14 @@ const wrapMessage = (senderName: string, content: string): string => `[${formatD
 export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
   const groupChains = new Map<string, Promise<void>>();
 
-  const buildUserParts = (msg: InboundMessage): Array<ContentBlockParam> => {
+  const buildUserParts = async (msg: InboundMessage): Promise<Array<ContentBlockParam>> => {
     const parts: Array<ContentBlockParam> = [];
-    if (msg.kind === "image") {
+    if (msg.kind === "image" || msg.kind === "video" || msg.kind === "voice" || msg.kind === "pdf") {
+      const media = await uploadMediaFile(msg.blob, msg.mimeType);
       parts.push({
-        inlineData: {
-          mimeType: msg.imageMimeType,
-          data: msg.imageBase64,
-        },
-      });
-    }
-    if (msg.kind === "video") {
-      parts.push({
-        inlineData: {
-          mimeType: msg.videoMimeType,
-          data: msg.videoBase64,
-        },
-      });
-    }
-    if (msg.kind === "voice") {
-      parts.push({
-        inlineData: {
-          mimeType: msg.audioMimeType,
-          data: msg.audioBase64,
-        },
-      });
-    }
-    if (msg.kind === "pdf") {
-      parts.push({
-        inlineData: {
-          mimeType: msg.pdfMimeType,
-          data: msg.pdfBase64,
+        fileData: {
+          fileUri: media.uri,
+          mimeType: media.mimeType,
         },
       });
     }
@@ -66,7 +43,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
   const runInternal = async (msg: InboundMessage, group: RegisteredGroup, channel: Channel): Promise<{ finalText: string; totalTokenCount: number } | null> => {
     const chatJid = msg.chatJid;
 
-    const userParts = buildUserParts(msg);
+    const userParts = await buildUserParts(msg);
     if (userParts.length === 0) return null;
 
     const messages: MessageParam[] = deps.repository.history.getHistory(chatJid);
