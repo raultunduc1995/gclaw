@@ -17,10 +17,16 @@ export interface TelegramChannelDeps {
   repository: SqliteRepository;
 }
 
+const telegramAgent = new https.Agent({
+  family: 4,
+  keepAlive: true,
+  timeout: 35_000,
+});
+
 export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
   const bot = new Bot(TELEGRAM_BOT_TOKEN, {
     client: {
-      baseFetchConfig: { agent: https.globalAgent, compress: true },
+      baseFetchConfig: { agent: telegramAgent, compress: true },
     },
   });
   bot.api.config.use(autoRetry());
@@ -31,8 +37,8 @@ export const createTelegramChannel = (opts: TelegramChannelDeps): Channel => {
       const chatType = ctx.chat.type;
       const chatName = chatType === "private" ? ctx.from?.first_name || "Private" : "title" in ctx.chat ? ctx.chat.title || "Unknown" : "Unknown";
       ctx.reply(`Chat ID: \`tg:${chatId}\`\nName: ${chatName}\nType: ${chatType}`, { parse_mode: "Markdown" });
-      logger.info(`Register new bot: ${chatId}`);
-      opts.repository.groups.registerGroup(`tg:${chatId}`, chatName, `telegram-${chatName}`);
+      // logger.info(`Register new bot: ${chatId}`);
+      // opts.repository.groups.registerGroup(`tg:${chatId}`, chatName, `telegram-${chatName}`);
     });
 
     bot.on("message:text", async (ctx) => {
@@ -298,12 +304,15 @@ const downloadTelegramFileAsBlob = async (api: Api, fileId: string, mimeType: Me
 
     const url = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${file.file_path}`;
     const buffer = await new Promise<Buffer>((resolve, reject) => {
-      https
-        .get(url, (res) => {
+      const req = https
+        .get(url, { agent: telegramAgent, timeout: 15_000 }, (res) => {
           const chunks: Buffer[] = [];
           res.on("data", (chunk: Buffer) => chunks.push(chunk));
           res.on("end", () => resolve(Buffer.concat(chunks)));
           res.on("error", reject);
+        })
+        .on("timeout", () => {
+          req.destroy(new Error("Telegram file download timed out"));
         })
         .on("error", reject);
     });
