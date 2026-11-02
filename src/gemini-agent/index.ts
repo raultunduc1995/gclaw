@@ -20,6 +20,15 @@ export interface GeminiAgent {
 const formatDateTime = (): string => Temporal.Now.zonedDateTimeISO(TIMEZONE).toPlainDateTime().toString({ fractionalSecondDigits: 0 });
 const wrapMessage = (senderName: string, content: string): string => `[${formatDateTime()}] ${senderName}:\n${content}`;
 
+const sanitizePartForStorage = (part: ContentBlockParam): ContentBlockParam => {
+  if (!part.fileData) return part;
+  const mime = part.fileData.mimeType || "";
+  if (mime.startsWith("image/")) return { text: "[Attached image - this can be ignored]" };
+  if (mime.startsWith("video/")) return { text: "[Attached video - this can be ignored]" };
+  if (mime.startsWith("audio/")) return { text: "[Attached audio - this can be ignored]" };
+  return { text: "[Attached document - this can be ignored]" };
+};
+
 export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
   const groupChains = new Map<string, Promise<void>>();
 
@@ -48,7 +57,7 @@ export const createGeminiAgent = (deps: GeminiAgentDeps): GeminiAgent => {
 
     const messages: MessageParam[] = deps.repository.history.getHistory(chatJid);
     messages.push({ role: "user", parts: userParts });
-    deps.repository.history.addMessage(chatJid, "user", userParts);
+    deps.repository.history.addMessage(chatJid, "user", userParts.map(sanitizePartForStorage));
 
     await channel.setTyping(chatJid);
 
